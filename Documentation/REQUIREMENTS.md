@@ -1,7 +1,9 @@
 # Portfolio ChatGPT Plugin — Requirements Specification
 
-Status: Draft — owner decisions recorded; external API access pending  
-Version: 0.2  
+Status: Draft — synthetic MVP approved in principle; production sources partially resolved
+
+Version: 0.3
+
 Last updated: 2026-09-02
 
 ## 1. Purpose
@@ -15,7 +17,7 @@ The first release will be read-only. It will retrieve factual portfolio data fro
 | ID | Decision | Status |
 |---|---|---|
 | D-01 | The portfolio is held on the Smallcase investment platform. | Confirmed |
-| D-02 | The data is currently viewed through the Smallcase website; the target integration is an official API rather than scraping. | Confirmed |
+| D-02 | The Smallcase portfolio uses Groww as its broker. Groww's official API is the target source for stock-level holdings and valuation data; authenticated website scraping is excluded. | Confirmed |
 | D-03 | Version 1 is for one user: the repository owner. | Confirmed |
 | D-04 | The primary capabilities are portfolio P/L and individual-stock performance, discovery of other Smallcases, and information about owned and other Smallcases. | Confirmed |
 | D-05 | The implementation language is Python. | Confirmed |
@@ -160,7 +162,39 @@ Each use case will later map to one or more MCP tool contracts. Tool names in th
 
 ## 6. External data-source findings
 
-The intended production source is **smallcase Gateway**, subject to access approval and applicable terms.
+### 6.1 Groww API for personal holdings
+
+The owner uses Groww as the broker connected to Smallcase. Groww's official Trading API is therefore the intended production source for stock-level portfolio data.
+
+The official Groww documentation states that individual Groww account holders can use the API with an active Trading API subscription. It provides a Python SDK and documents:
+
+- Holdings with ISIN, trading symbol, quantity, and average price.
+- Positions, including realized P/L where applicable.
+- Instrument reference data.
+- Live market data, including latest traded price.
+- Historical market-price data.
+
+For long-term holdings, the plugin can derive an indicative unrealized P/L from the Groww-provided quantity and average price combined with a Groww-provided current price. The exact formula, timestamp, rounding, treatment of unavailable prices, and interpretation of special quantities must be documented and tested before production use.
+
+Groww's documented holdings schema does not include Smallcase membership, Smallcase identifiers, strategy metadata, or Smallcase-level return attribution. Therefore:
+
+- Groww can support stock-level holdings, valuation, and P/L.
+- Groww cannot be assumed to identify which holdings or quantities belong to a particular Smallcase.
+- Groww cannot supply the Smallcase discovery catalog or descriptive Smallcase metadata.
+- The plugin must not infer Smallcase membership merely by comparing a user's stocks with a model portfolio.
+
+Authentication remains server-side. Tokens and API secrets must never be exposed to ChatGPT, stored in synthetic fixtures, or committed to Git. Token lifetime and renewal behavior will be specified during production-adapter design.
+
+References:
+
+- [Groww Trading API introduction and authentication](https://groww.in/trade-api/docs/curl)
+- [Groww Python SDK portfolio API](https://groww.in/trade-api/docs/python-sdk/portfolio)
+- [Groww live-data API](https://groww.in/trade-api/docs/curl/live-data)
+- [Groww instrument data](https://groww.in/trade-api/docs/curl/instruments)
+
+### 6.2 Smallcase Gateway for Smallcase-specific data
+
+Smallcase Gateway would be the natural source for Smallcase-specific data, but it is not a self-service individual-user API. It remains unavailable to this project unless Smallcase grants partner integration access.
 
 Official Smallcase documentation currently describes APIs for:
 
@@ -179,10 +213,11 @@ Fetching holdings also requires a connected-user token and one-time user consent
 
 Consequences for the build:
 
-1. The synthetic adapter can be implemented without Gateway credentials.
-2. The production adapter remains blocked until the owner confirms eligibility for and obtains Smallcase Gateway access.
-3. Authenticated website scraping is not an accepted fallback.
-4. If Gateway access is unavailable, a separately approved import source such as a broker API or user-exported statement must be evaluated.
+1. The synthetic adapter can model both Groww portfolio data and Smallcase catalog data without credentials.
+2. The production Groww adapter can provide stock-level portfolio information after the owner subscribes and configures credentials.
+3. Real Smallcase grouping, owned-Smallcase details, and platform discovery remain blocked without an authorized source.
+4. Authenticated website scraping is not an accepted fallback.
+5. A user-maintained or exported data file may later be evaluated for Smallcase-specific metadata, but it must be treated as a separate, timestamped source.
 
 References:
 
@@ -293,10 +328,11 @@ Connection to a real portfolio is a separate acceptance milestone and will not b
 
 | ID | Decision or dependency | Status |
 |---|---|---|
-| R-01 | Confirm whether the owner can obtain Smallcase Gateway integration credentials through Smallcase's onboarding process. | Open; does not block the synthetic prototype. |
-| R-02 | Confirm which discovery filters and detail fields are permitted by the owner's eventual Gateway agreement. | Open; does not block synthetic contract design. |
-| R-03 | Decide the exact freshness threshold after inspecting real Gateway `snapshotDate` behavior. | Deferred to production-adapter design. |
-| R-04 | Decide deployment and private authentication after the local MCP prototype works. | Deferred. |
+| R-01 | Activate or confirm an active Groww Trading API subscription before production integration. | Open; does not block the synthetic prototype. |
+| R-02 | Choose the Groww authentication flow and document token renewal. | Deferred to production-adapter design. |
+| R-03 | Identify an authorized source for owned-Smallcase grouping and Smallcase catalog/details. | Open; no suitable individual API is currently confirmed. |
+| R-04 | Decide freshness thresholds for holdings, current prices, and imported Smallcase metadata. | Deferred to production-adapter design. |
+| R-05 | Decide deployment and private authentication after the local MCP prototype works. | Deferred. |
 
 ## 14. Requirements-to-test traceability
 
@@ -319,6 +355,6 @@ Requirements work is complete only when:
 - The privacy boundary and intended users are explicit.
 - MVP acceptance criteria are agreed upon.
 
-The synthetic MVP requirements may be approved before R-01 through R-04 are resolved. Production integration requirements cannot be finalized until those dependencies are resolved.
+The synthetic MVP requirements may be approved before R-01 through R-05 are resolved. Production integration requirements cannot be finalized until those dependencies are resolved.
 
 Only then should Step 2—detailed MCP tool design—begin.

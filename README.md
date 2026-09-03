@@ -7,4 +7,4 @@ A carefully designed, read-only ChatGPT plugin for inspecting and understanding 
 - [System overview and development roadmap](Documentation/CHATGPT_PLUGIN_GUIDE.md)
 - [Requirements specification](Documentation/REQUIREMENTS.md)
 
-The project is currently completing **Step 1: Requirements**. The synthetic, read-only MVP direction is confirmed; access to the production Smallcase Gateway API remains an external dependency.
+The project is currently completing **Step 1: Requirements**. The synthetic, read-only MVP direction is confirmed. Groww's official API is the planned source for stock-level portfolio data; an authorized source for Smallcase-specific grouping and catalog data remains unresolved.
